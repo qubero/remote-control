@@ -4,6 +4,7 @@ import { createWebSocketStream, WebSocketServer } from 'ws';
 import type { DuplexOptions } from 'stream';
 import { RCcommmands } from './src/commands';
 import { ICommandFn, RCcommand } from './src/commands/interfaces';
+import 'dotenv/config';
 
 const HTTP_PORT = Number(process.env.HTTP_PORT) || 3000;
 const WSS_PORT = Number(process.env.WSS_PORT) || 8080;
