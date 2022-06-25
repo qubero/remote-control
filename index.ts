@@ -3,24 +3,28 @@ import robot from 'robotjs';
 import { createWebSocketStream, WebSocketServer } from 'ws';
 import type { DuplexOptions } from 'stream';
 import { RCcommmands } from './src/commands';
-import { ICommandFn, RCcommand } from './src/commands/interfaces';
+import { ICommandFn, IWebSocket, RCcommand } from './src/commands/interfaces';
 import 'dotenv/config';
 
-const HTTP_PORT = Number(process.env.HTTP_PORT) || 3000;
+const HTTP_PORT = Number(process.env.HTTP_PORT) || 3001;
 const WSS_PORT = Number(process.env.WSS_PORT) || 8080;
 
 httpServer.listen(HTTP_PORT)
   .on('listening', () => console.log(`Start static http server on the ${HTTP_PORT} port!`));
 
 const wss = new WebSocketServer({ port: WSS_PORT });
-
-wss.on('listening', () => console.log(`Start web socket server on the ${WSS_PORT} port!`));
+wss.on('listening', () => console.log(`Start web socket server on the ${WSS_PORT} port!\n`));
 
 wss.on('headers', () => {
-  console.log('New connection');
+  console.log('New connection!');
 });
 
-wss.on('connection', (ws) => {
+wss.on('connection', async (ws: IWebSocket) => {
+  ws.isAlive = true;
+  ws.on('pong', () => {
+    ws.isAlive = true;
+  });
+
   const wsStreamOptions: DuplexOptions = {
     encoding: 'utf8',
     decodeStrings: false,
@@ -50,23 +54,47 @@ wss.on('connection', (ws) => {
       const result = await cmd(coords, args.map((arg) => Number(arg) || 0));
 
       duplex.write(`${command} ${result}\0`, () => {
-        console.log(`'${command}' Done!`);
+        console.log(`'${command} ${args}' Done!`);
       });
     } catch (err) {
+      console.log(`'${command} ${args}' Failed!`);
       if (err instanceof Error) {
         console.error(err.name + ': ' + err.message);
       }
     }
   });
 
-  duplex.on('end', () => console.log('There will be no more data.'));
+  duplex.on('end', () => {
+    console.log('There will be no more data.\n');
+  });
 
-  ws.on('close', () => duplex.destroy());
+  ws.on('close', () => {
+    duplex.destroy();
+  });
 });
 
 process.on('SIGINT', () => {
-  httpServer.close();
-  wss.close();
-  console.log('Bye-bye');
-  process.exit();
+  wss.clients.forEach((ws: any) => {
+    if (ws.isAlive) ws.terminate();
+  });
+  wss.close(() => {
+    clearInterval(interval);
+    console.log('\nStop web socket server.');
+  });
+  httpServer.close(() => {
+    console.log('Stop static http server.');
+  });
+
+  process.nextTick(() => {
+      process.exit();
+  });
 });
+
+const interval = setInterval(() => {
+  wss.clients.forEach((ws: any) => {
+    if (ws.isAlive === false) return ws.terminate();
+
+    ws.isAlive = false;
+    ws.ping();
+  });
+}, 30000);
