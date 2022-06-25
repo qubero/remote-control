@@ -6,7 +6,7 @@ import { RCcommmands } from './src/commands';
 import { ICommandFn, IWebSocket, RCcommand } from './src/commands/interfaces';
 import 'dotenv/config';
 
-const HTTP_PORT = Number(process.env.HTTP_PORT) || 3001;
+const HTTP_PORT = Number(process.env.HTTP_PORT) || 3000;
 const WSS_PORT = Number(process.env.WSS_PORT) || 8080;
 
 httpServer.listen(HTTP_PORT)
@@ -15,8 +15,8 @@ httpServer.listen(HTTP_PORT)
 const wss = new WebSocketServer({ port: WSS_PORT });
 wss.on('listening', () => console.log(`Start web socket server on the ${WSS_PORT} port!\n`));
 
-wss.on('headers', () => {
-  console.log('New connection!');
+wss.on('headers', (data) => {
+  console.log(data);
 });
 
 wss.on('connection', async (ws: IWebSocket) => {
